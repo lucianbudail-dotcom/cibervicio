@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CiberVicio - Clientes</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .password-cell:hover { background-color: rgba(0,0,0,0.05); }
+        /* Modal personalizado */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 320px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .modal-box h3 { margin: 0 0 16px 0; color: #333; }
+        .modal-box input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #6750A4;
+            border-radius: 8px;
+            font-size: 18px;
+            text-align: center;
+            box-sizing: border-box;
+            margin-bottom: 16px;
+        }
+        .modal-box .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-box .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .modal-box .btn-cancel {
+            background: #ddd;
+            color: #333;
+        }
+        .modal-box .btn-confirm {
+            background: #6750A4;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <!-- Modal para añadir puntos -->
+    <div class="modal-overlay" id="modal-puntos">
+        <div class="modal-box">
+            <h3 id="modal-titulo">Añadir puntos</h3>
+            <input type="number" id="modal-input" value="100" min="1">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-confirm" id="modal-btn-confirm" onclick="confirmarPuntos()">Añadir</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <h1 id="nombre-local">CiberVicio</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">Equipos</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
+                <li><a href="configuracion.html">Config</a></li>
+                <li><a href="index.html">Salir</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Gestión de Clientes</h2>
+        <p>Administra los usuarios registrados.</p>
+
+        <section>
+            <h3>Registrar Cliente</h3>
+            <form id="form-cliente">
+                <input type="text" id="nombre-cli" placeholder="Nombre" required>
+                <input type="email" id="email-cli" placeholder="Email" required>
+                <button type="submit">Añadir</button>
+            </form>
+        </section>
+
+        <section>
+            <div>
+                <h3>Usuarios (<span id="total-clientes">0</span>)</h3>
+                <button onclick="cargar()">Actualizar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Contraseña</th>
+                        <th>Puntos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        // Variables para el modal de puntos
+        let _puntosClienteId = null;
+
+        function toast(msg) {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        document.getElementById('form-cliente').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/clientes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre: document.getElementById('nombre-cli').value,
+                    email: document.getElementById('email-cli').value
+                })
+            });
+            if (res.ok) {
+                toast('Cliente registrado');
+                e.target.reset();
+                cargar();
+            }
+        });
+
+        async function cargar() {
+            const res = await fetch('/api/clientes');
+            const data = await res.json();
+            const tabla = document.getElementById('tabla');
+            document.getElementById('total-clientes').textContent = data.clientes.length;
+            tabla.innerHTML = '';
+
+            data.clientes.forEach(c => {
+                const tr = document.createElement('tr');
+
+                const tdNombre = document.createElement('td');
+                tdNombre.textContent = c.nombre || '';
+                tr.appendChild(tdNombre);
+
+                const tdEmail = document.createElement('td');
+                tdEmail.textContent = c.email;
+                tr.appendChild(tdEmail);
+
+                const tdPass = document.createElement('td');
+                tdPass.className = 'password-cell';
+                tdPass.style.cursor = 'pointer';
+                tdPass.style.userSelect = 'none';
+                tdPass.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                tdPass.addEventListener('click', function() {
+                    if (this.textContent === '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022') {
+                        this.textContent = String(c.password);
+                    } else {
+                        this.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+                    }
+                });
+                tr.appendChild(tdPass);
+
+                const tdPuntos = document.createElement('td');
+                tdPuntos.textContent = c.puntos;
+                tr.appendChild(tdPuntos);
+
+                const tdAcciones = document.createElement('td');
+
+                const btnPuntos = document.createElement('button');
+                btnPuntos.textContent = '+ Puntos';
+                btnPuntos.addEventListener('click', () => abrirModalPuntos(c.id, c.nombre, 'sumar'));
+                tdAcciones.appendChild(btnPuntos);
+
+                const btnQuitar = document.createElement('button');
+                btnQuitar.textContent = '- Puntos';
+                btnQuitar.style.background = '#e74c3c';
+                btnQuitar.addEventListener('click', () => abrirModalPuntos(c.id, c.nombre, 'restar'));
+                tdAcciones.appendChild(btnQuitar);
+
+                const btnBorrar = document.createElement('button');
+                btnBorrar.textContent = 'Borrar';
+                btnBorrar.addEventListener('click', () => eliminar(c.id));
+                tdAcciones.appendChild(btnBorrar);
+
+                tr.appendChild(tdAcciones);
+                tabla.appendChild(tr);
+            });
+        }
+
+        // --- Modal de Puntos ---
+        let _puntosMode = 'sumar';
+
+        function abrirModalPuntos(id, nombre, modo) {
+            _puntosClienteId = id;
+            _puntosMode = modo || 'sumar';
+            const esRestar = _puntosMode === 'restar';
+            document.getElementById('modal-titulo').textContent =
+                (esRestar ? 'Quitar puntos a ' : 'Añadir puntos a ') + (nombre || 'cliente');
+            document.getElementById('modal-btn-confirm').textContent = esRestar ? 'Quitar' : 'Añadir';
+            document.getElementById('modal-btn-confirm').style.background = esRestar ? '#e74c3c' : '#6750A4';
+            document.getElementById('modal-input').value = '100';
+            document.getElementById('modal-puntos').classList.add('active');
+            document.getElementById('modal-input').focus();
+        }
+
+        function cerrarModal() {
+            _puntosClienteId = null;
+            document.getElementById('modal-puntos').classList.remove('active');
+        }
+
+        async function confirmarPuntos() {
+            const pts = parseInt(document.getElementById('modal-input').value);
+            if (!pts || pts <= 0 || !_puntosClienteId) return;
+
+            const valor = _puntosMode === 'restar' ? -pts : pts;
+            await fetch('/api/clientes/' + _puntosClienteId + '/puntos', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ puntos: valor })
+            });
+            toast(_puntosMode === 'restar' ? 'Puntos quitados: -' + pts : 'Puntos añadidos: +' + pts);
+            cerrarModal();
+            cargar();
+        }
+
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarModal();
+            if (e.key === 'Enter' && _puntosClienteId) confirmarPuntos();
+        });
+
+        async function eliminar(id) {
+            if (!confirm('¿Eliminar cliente?')) return;
+            await fetch('/api/clientes/' + id, { method: 'DELETE' });
+            toast('Cliente eliminado');
+            cargar();
+        }
+
+        cargar();
+    </script>
+</body>
+</html>

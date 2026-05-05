@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CiberVicio - Equipos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+    <header>
+        <h1 id="nombre-local">CiberVicio</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">Equipos</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
+                <li><a href="configuracion.html">Config</a></li>
+                <li><a href="index.html">Salir</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Estado de la Sala</h2>
+        <p>Gestión de equipos en tiempo real.</p>
+
+        <div class="grid">
+            <div>
+                <div>Libres</div>
+                <div id="stat-libres">-</div>
+            </div>
+            <div>
+                <div>Ocupados</div>
+                <div id="stat-ocupados">-</div>
+            </div>
+            <div>
+                <div>Reservados</div>
+                <div id="stat-reservados">-</div>
+            </div>
+            <div>
+                <div>Clientes</div>
+                <div id="stat-clientes">-</div>
+            </div>
+        </div>
+
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Equipos</h3>
+                <button onclick="cargarTodo()">Actualizar Ahora</button>
+            </div>
+            <div id="grid-equipos" class="grid"></div>
+        </section>
+
+        <div id="modal-reserva" style="display: none;">
+            <div class="modal-content">
+                <h3>PIN de Reserva</h3>
+                <p id="modal-equipo-nombre"></p>
+                <div id="modal-pin">----</div>
+                <button onclick="cerrarModal()">Cerrar</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let equiposCache = [];
+        let precioBase = 0;
+
+        function toast(msg, tipo = 'success') {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `toast ${tipo}`;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        async function cargarTodo() {
+            try {
+                const [resEq, resStat] = await Promise.all([fetch('/api/equipos'), fetch('/api/stats')]);
+                const dataEq = await resEq.json();
+                const dataStat = await resStat.json();
+
+                document.getElementById('stat-libres').textContent = dataStat.equipos.libres;
+                document.getElementById('stat-ocupados').textContent = dataStat.equipos.ocupados;
+                document.getElementById('stat-reservados').textContent = dataStat.equipos.reservados;
+                document.getElementById('stat-clientes').textContent = dataStat.clientes.total;
+                
+                if (dataStat.configuracion) {
+                    document.getElementById('nombre-local').textContent = dataStat.configuracion.nombre_local;
+                    precioBase = dataStat.configuracion.precio_hora;
+                }
+
+                equiposCache = dataEq.equipos;
+                renderizarEquipos();
+            } catch (e) {
+                console.error("Error cargando datos", e);
+            }
+        }
+
+        function renderizarEquipos() {
+            const grid = document.getElementById('grid-equipos');
+            grid.innerHTML = '';
+            
+            equiposCache.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.id = `eq-${eq.id}`;
+                
+                let cobroHtml = '';
+                if (eq.estado === 'Ocupado') {
+                    cobroHtml = `<p class="cobro-texto" id="cobro-${eq.id}">Calculando...</p>`;
+                }
+
+                div.innerHTML = `
+                    <h4>${eq.nombre}</h4>
+                    <p class="estado-${eq.estado.toLowerCase()}">${eq.estado.toUpperCase()}</p>
+                    ${cobroHtml}
+                    <div class="acciones">
+                        <button onclick="toggle(${eq.id})">Cambiar</button>
+                        ${eq.estado === 'Libre' ? `<button onclick="reservar(${eq.id}, '${eq.nombre}')" class="btn-reserva">Reservar</button>` : ''}
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+            actualizarPreciosRealTime();
+        }
+
+        function actualizarPreciosRealTime() {
+            const ahora = new Date();
+            equiposCache.forEach(eq => {
+                if (eq.estado === 'Ocupado') {
+                    const el = document.getElementById(`cobro-${eq.id}`);
+                    if (el) {
+                        // Usar cobro_actual del servidor si está disponible
+                        const cobroServidor = parseFloat(eq.cobro_actual);
+                        if (!isNaN(cobroServidor) && cobroServidor > 0) {
+                            el.innerHTML = `Cobrando: <span style="color: var(--primario);">${cobroServidor.toFixed(4)}€</span>`;
+                        } else if (eq.hora_inicio && eq.hora_inicio !== 'NULL') {
+                            // Calcular en cliente si el servidor no lo manda
+                            const inicio = new Date(eq.hora_inicio.replace(' ', 'T'));
+                            const diffSegundos = Math.max(0, (ahora - inicio) / 1000);
+                            const total = (diffSegundos / 3600) * (parseFloat(precioBase) || 0);
+                            if (!isNaN(total)) {
+                                el.innerHTML = `Cobrando: <span style="color: var(--primario);">${total.toFixed(4)}€</span>`;
+                            } else {
+                                el.innerHTML = `Cobrando: <span style="color: var(--primario);">0.0000€</span>`;
+                            }
+                        } else {
+                            el.innerHTML = `Cobrando: <span style="color: var(--primario);">0.0000€</span>`;
+                        }
+                    }
+                }
+            });
+        }
+
+        async function toggle(id) {
+            await fetch(`/api/equipos/${id}/toggle`, { method: 'PUT' });
+            cargarTodo();
+        }
+
+        async function reservar(id, nombre) {
+            const res = await fetch('/api/reservas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipo_id: id, usuario_id: 1 })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('modal-equipo-nombre').textContent = nombre;
+                document.getElementById('modal-pin').textContent = data.pin;
+                document.getElementById('modal-reserva').style.display = 'block';
+                cargarTodo();
+            } else {
+                alert(data.message);
+            }
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-reserva').style.display = 'none';
+        }
+
+        // Inicializar
+        cargarTodo();
+        
+        // Actualizar datos del servidor cada 15 segundos
+        setInterval(cargarTodo, 15000);
+        
+        // Actualizar el cronómetro de precios cada segundo (suave)
+        setInterval(actualizarPreciosRealTime, 1000);
+    </script>
+    <style>
+        .estado-libre { color: #4caf50; font-weight: bold; }
+        .estado-ocupado { color: #f44336; font-weight: bold; }
+        .estado-reservado { color: #ff9800; font-weight: bold; }
+        .cobro-texto { font-size: 1.1em; margin: 10px 0; }
+        .btn-reserva { background-color: var(--secundario); margin-left: 5px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; width: 300px; margin: 100px auto; text-align: center; }
+        #modal-pin { font-size: 3em; font-weight: bold; letter-spacing: 5px; color: var(--primario); margin: 20px 0; }
+    </style>
+</body>
+</html>

@@ -1,0 +1,59 @@
+:root {
+    --primario: #7c3aed;
+    --fondo: #f8fafc;
+    --texto: #1e293b;
+    --blanco: #ffffff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    background: var(--fondo); 
+    color: var(--texto); 
+    line-height: 1.6;
+}
+
+/* Cabecera */
+header { 
+    background: linear-gradient(135deg, var(--primario), #4f46e5); 
+    color: white; 
+    padding: 1.5rem; 
+    text-align: center; 
+}
+
+nav ul { display: flex; justify-content: center; gap: 1.5rem; list-style: none; margin-top: 1rem; }
+nav a { color: white; text-decoration: none; font-weight: 600; opacity: 0.9; }
+nav a:hover { opacity: 1; text-decoration: underline; }
+
+/* Contenedor Principal */
+main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+
+section, .card { 
+    background: var(--blanco); 
+    padding: 1.5rem; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+    margin-bottom: 1.5rem; 
+}
+
+/* Grid y Contenedores */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.card, .grid > div { background: var(--blanco); padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; text-align: center; }
+
+/* Formularios y Botones */
+input, button { padding: 0.7rem 1rem; border-radius: 8px; border: 1px solid #ddd; width: 100%; margin-bottom: 1rem; }
+button { background: var(--primario); color: white; border: none; cursor: pointer; font-weight: bold; width: auto; transition: 0.2s; }
+button:hover { opacity: 0.9; transform: scale(1.02); }
+
+
+/* Tablas */
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { background: #f1f5f9; font-weight: 600; }
+
+/* Toasts / Mensajes */
+#toast-container { position: fixed; bottom: 20px; right: 20px; }
+#toast-container div { background: #10b981; color: white; padding: 1rem; border-radius: 8px; margin-top: 10px; animation: slideIn 0.3s; }
+
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }

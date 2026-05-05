@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CiberVicio - Configuración</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+    <header>
+        <h1 id="nombre-local">CiberVicio</h1>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html">Equipos</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
+                <li><a href="configuracion.html">Config</a></li>
+                <li><a href="index.html">Salir</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Configuración</h2>
+        <p>Ajustes globales del sistema.</p>
+
+        <section>
+            <h3>Datos del Local</h3>
+            <form id="form-config">
+                <div>
+                    <label>Nombre del Local</label>
+                    <input type="text" id="nombre" required>
+                </div>
+                <div>
+                    <label>Precio por Hora (€)</label>
+                    <input type="number" id="precio" step="0.5" required>
+                </div>
+                <button type="submit">Guardar Cambios</button>
+            </form>
+        </section>
+
+        <section>
+            <h3>Acciones Rápidas</h3>
+            <p>Restablece todos los equipos al estado libre inmediatamente.</p>
+            <button onclick="resetAll()">Restablecer Todo</button>
+        </section>
+    </main>
+
+    <script>
+        function toast(msg, tipo = 'success') {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+        async function cargar() {
+            const res = await fetch('/api/configuracion');
+            const data = await res.json();
+            if (data.configuracion) {
+                document.getElementById('nombre').value = data.configuracion.nombre_local;
+                document.getElementById('precio').value = data.configuracion.precio_hora;
+                document.getElementById('nombre-local').textContent = data.configuracion.nombre_local;
+            }
+        }
+        document.getElementById('form-config').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await fetch('/api/configuracion', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre_local: document.getElementById('nombre').value,
+                    precio_hora: document.getElementById('precio').value
+                })
+            });
+            toast('Configuración guardada');
+            cargar();
+        });
+        async function resetAll() {
+            if (!confirm('¿Liberar todos los equipos?')) return;
+            await fetch('/api/equipos/reset-all', { method: 'POST' });
+            toast('Equipos liberados');
+        }
+        cargar();
+    </script>
+</body>
+</html>
