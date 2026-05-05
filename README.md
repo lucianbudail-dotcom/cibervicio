@@ -40,4 +40,4 @@ Este proyecto es parte de un trabajo intermodular. Consulta el archivo license.t
 
 ---
 
-Desarrollado por [lucianbudail-dotcom](https://github.com/lucianbudail-dotcom)
+Desarrollado por Alex y Lucian)
